@@ -9,6 +9,7 @@ FYP-ClassNet is an offline classroom collaboration system designed to bridge the
 ## 🎯 Vision
 
 To revolutionize classroom dynamics by providing a web-based system that:
+
 - Works entirely offline using local area networks
 - Enables real-time collaboration between teachers and students
 - Eliminates the need for constant internet connectivity
@@ -26,27 +27,32 @@ To revolutionize classroom dynamics by providing a web-based system that:
 ### 👩‍🏫 For Teachers
 
 #### Class Server Management
+
 - Create and host a class server instantly
 - Generate unique session codes
 - Monitor connected students in real-time
-- IP-based local access (e.g., http://192.168.0.10:5000)
+- IP-based local access (e.g., <http://192.168.0.10:5000>)
 
 #### Screen Sharing
+
 - Real-time screen streaming via WebRTC
 - Local network-only transmission
 - Low-latency sharing
 
 #### Attendance System
+
 - Automatic IP-based attendance tracking
 - Real-time connection monitoring
 - Anti-proxy measures through unique IP tracking
 
 #### Content Distribution
+
 - Share educational materials instantly
 - Support for PDFs, notes, videos, presentations
 - Local file transfer system
 
 #### Interactive Whiteboard
+
 - Real-time collaborative drawing
 - Multi-color support
 - Save and share board contents
@@ -54,11 +60,13 @@ To revolutionize classroom dynamics by providing a web-based system that:
 ### 👨‍🎓 For Students
 
 #### Easy Access
+
 - Simple LAN connection process
 - Code/IP-based class joining
 - No account creation required
 
 #### Learning Tools
+
 - Live screen view
 - Access to shared resources
 - Interactive whiteboard view
