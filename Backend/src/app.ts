@@ -1,0 +1,37 @@
+import express from "express";
+import http from "http";
+import cors from "cors";
+import path from "path";
+import { initSocket } from "./sockets/index.js";
+import { getLocalIP } from "./utils/getLocalIP.js";
+import { config } from "./config/index.js";
+
+const app = express();
+const httpServer = http.createServer(app);
+
+// --- Middleware ---
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// --- Static file serving (uploads) ---
+app.use("/uploads", express.static(path.join(__dirname, "..", config.uploadDir)));
+
+// --- Health check ---
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok", message: "ClassNet server is running" });
+});
+
+// --- Socket.io ---
+initSocket(httpServer);
+
+// --- Start server ---
+httpServer.listen(config.port, "0.0.0.0", () => {
+  const localIP = getLocalIP();
+  console.log("=================================");
+  console.log("  🎓 ClassNet Server Started");
+  console.log("=================================");
+  console.log(`  Local:   http://localhost:${config.port}`);
+  console.log(`  LAN:     http://${localIP}:${config.port}`);
+  console.log("=================================");
+});
