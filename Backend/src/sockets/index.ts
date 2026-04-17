@@ -1,5 +1,9 @@
 import { Server as HttpServer } from "http";
 import { Server as SocketServer } from "socket.io";
+import { registerSessionSocketEvents } from "../modules/session/session.socket.js";
+import { registerStudentSocketEvents } from "../modules/student/student.socket.js";
+import { registerAttendanceSocketEvents } from "../modules/attendance/attendance.socket.js";
+import { registerFilesSocketEvents } from "../modules/files/files.socket.js";
 
 let io: SocketServer;
 
@@ -13,6 +17,11 @@ export function initSocket(httpServer: HttpServer): SocketServer {
 
   io.on("connection", (socket) => {
     console.log(`[Socket] Client connected: ${socket.id}`);
+
+    registerSessionSocketEvents(io, socket);
+    registerStudentSocketEvents(io, socket);
+     registerAttendanceSocketEvents(io, socket);
+     registerFilesSocketEvents(io, socket);
 
     socket.on("disconnect", () => {
       console.log(`[Socket] Client disconnected: ${socket.id}`);
