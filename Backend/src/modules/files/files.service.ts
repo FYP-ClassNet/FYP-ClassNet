@@ -1,85 +1,71 @@
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
 import fs from "fs";
-import { filesStore } from "./files.store.js";
-import { type SharedFile, type FileCategory, type FileUploadedEvent } from "../../types/files.types.js";
+import db from "../../database/database.js";
 import { config } from "../../config/index.js";
 import { getLocalIP } from "../../utils/getLocalIP.js";
 
-function getCategory(mimeType: string): FileCategory {
+function getCategory(mimeType: string): string {
   if (mimeType === "application/pdf") return "pdf";
   if (mimeType.startsWith("image/")) return "image";
   if (mimeType.startsWith("video/")) return "video";
-  if (
-    mimeType.includes("word") ||
-    mimeType.includes("presentation") ||
-    mimeType.includes("spreadsheet") ||
-    mimeType.includes("text")
-  )
-    return "document";
+  if (mimeType.includes("word") || mimeType.includes("presentation") || mimeType.includes("text")) return "document";
   return "other";
 }
 
 export const filesService = {
-  saveFile(
-    sessionId: string,
-    originalName: string,
-    storedName: string,
-    mimeType: string,
-    sizeBytes: number
-  ): SharedFile {
+  async saveFile(sessionId: string, originalName: string, storedName: string, mimeType: string, sizeBytes: number) {
     const fileId = uuidv4();
     const localIP = getLocalIP();
-
     const filePath = path.join(config.uploadDir, sessionId, storedName);
     const fileUrl = `http://${localIP}:${config.port}/uploads/${sessionId}/${storedName}`;
+    const category = getCategory(mimeType);
 
-    const file: SharedFile = {
-      id: fileId,
-      sessionId,
-      originalName,
-      storedName,
-      filePath,
-      fileUrl,
-      mimeType,
-      category: getCategory(mimeType),
-      sizeBytes,
-      uploadedAt: new Date(),
-    };
+    await db.execute({
+      sql: `INSERT INTO files (id, session_id, original_name, stored_name, file_path, file_url, mime_type, category, size_bytes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [fileId, sessionId, originalName, storedName, filePath, fileUrl, mimeType, category, sizeBytes],
+    });
 
-    filesStore.save(file);
-    console.log(`[Files] Saved: ${originalName} for session ${sessionId}`);
-    return file;
+    const result = await db.execute({
+      sql: `SELECT * FROM files WHERE id = ?`,
+      args: [fileId],
+    });
+    return result.rows[0];
   },
 
-  getSessionFiles(sessionId: string): SharedFile[] {
-    return filesStore.findBySession(sessionId);
+  async getSessionFiles(sessionId: string) {
+    const result = await db.execute({
+      sql: `SELECT * FROM files WHERE session_id = ?`,
+      args: [sessionId],
+    });
+    return result.rows;
   },
 
-  deleteFile(sessionId: string, fileId: string): boolean {
-    const file = filesStore.findById(sessionId, fileId);
+  async deleteFile(sessionId: string, fileId: string): Promise<boolean> {
+    const result = await db.execute({
+      sql: `SELECT * FROM files WHERE id = ? AND session_id = ?`,
+      args: [fileId, sessionId],
+    });
+    const file = result.rows[0];
     if (!file) return false;
 
-    // Remove from disk
-    const fullPath = path.join(process.cwd(), file.filePath);
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-    }
+    const fullPath = path.join(process.cwd(), file.file_path as string);
+    if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
 
-    filesStore.deleteFile(sessionId, fileId);
-    console.log(`[Files] Deleted: ${file.originalName}`);
+    await db.execute({ sql: `DELETE FROM files WHERE id = ?`, args: [fileId] });
     return true;
   },
 
-  toEvent(file: SharedFile): FileUploadedEvent {
+  toEvent(file: any) {
     return {
       fileId: file.id,
-      originalName: file.originalName,
-      fileUrl: file.fileUrl,
-      mimeType: file.mimeType,
+      originalName: file.original_name,
+      fileUrl: file.file_url,
+      mimeType: file.mime_type,
       category: file.category,
-      sizeBytes: file.sizeBytes,
-      uploadedAt: file.uploadedAt,
+      sizeBytes: file.size_bytes,
+      uploadedAt: file.uploaded_at,
     };
   },
 };

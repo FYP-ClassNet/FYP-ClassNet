@@ -1,33 +1,20 @@
 import { v4 as uuidv4 } from "uuid";
-import { sessionStore } from "./session.store.js";
-import { type Session, type CreateSessionPayload, type CreateSessionResponse } from "../../types/session.types.js";
+import db from "../../database/database.js";
 import { getLocalIP } from "../../utils/getLocalIP.js";
 import { config } from "../../config/index.js";
 
-function generateSessionCode(): string {
-  // 6-character alphanumeric code e.g. "A3F9K1"
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
-
 export const sessionService = {
-  createSession(payload: CreateSessionPayload): CreateSessionResponse {
+  async createSession(teacherSocketId: string) {
     const sessionId = uuidv4();
-    const sessionCode = generateSessionCode();
+    const sessionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     const localIP = getLocalIP();
 
-    const session: Session = {
-      id: sessionId,
-      code: sessionCode,
-      teacherSocketId: payload.teacherSocketId,
-      students: new Map(),
-      createdAt: new Date(),
-      status: "active",
-    };
+    await db.execute({
+      sql: `INSERT INTO sessions (id, code, teacher_socket_id) VALUES (?, ?, ?)`,
+      args: [sessionId, sessionCode, teacherSocketId],
+    });
 
-    sessionStore.save(session);
-
-    console.log(`[Session] Created: ${sessionCode} (${sessionId})`);
-
+    console.log(`[Session] Created: ${sessionCode}`);
     return {
       sessionId,
       sessionCode,
@@ -35,33 +22,43 @@ export const sessionService = {
     };
   },
 
-  getSession(sessionId: string): Session | undefined {
-    return sessionStore.findById(sessionId);
+  async getSessionById(sessionId: string) {
+    const result = await db.execute({
+      sql: `SELECT * FROM sessions WHERE id = ?`,
+      args: [sessionId],
+    });
+    return result.rows[0] ?? null;
   },
 
-  getSessionByCode(code: string): Session | undefined {
-    return sessionStore.findByCode(code);
+  async getSessionByCode(code: string) {
+    const result = await db.execute({
+      sql: `SELECT * FROM sessions WHERE code = ?`,
+      args: [code.toUpperCase()],
+    });
+    return result.rows[0] ?? null;
   },
 
-  endSession(sessionId: string): boolean {
-    const session = sessionStore.findById(sessionId);
-    if (!session) return false;
-
-    session.status = "ended";
-    sessionStore.save(session);
-
-    console.log(`[Session] Ended: ${session.code} (${sessionId})`);
-    return true;
+  async endSession(sessionId: string): Promise<boolean> {
+    const result = await db.execute({
+      sql: `UPDATE sessions SET status = 'ended', ended_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'active'`,
+      args: [sessionId],
+    });
+    return (result.rowsAffected ?? 0) > 0;
   },
 
-  getStudentCount(sessionId: string): number {
-    const session = sessionStore.findById(sessionId);
-    if (!session) return 0;
-    return Array.from(session.students.values()).filter((s) => s.isOnline).length;
+  async getActiveSessionByTeacherSocket(socketId: string) {
+    const result = await db.execute({
+      sql: `SELECT * FROM sessions WHERE teacher_socket_id = ? AND status = 'active'`,
+      args: [socketId],
+    });
+    return result.rows[0] ?? null;
   },
 
-  isTeacher(sessionId: string, socketId: string): boolean {
-    const session = sessionStore.findById(sessionId);
-    return session?.teacherSocketId === socketId;
+  async getOnlineStudentCount(sessionId: string): Promise<number> {
+    const result = await db.execute({
+      sql: `SELECT COUNT(*) as count FROM students WHERE session_id = ? AND is_online = 1`,
+      args: [sessionId],
+    });
+    return Number(result.rows[0]?.count ?? 0);
   },
 };

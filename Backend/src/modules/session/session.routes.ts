@@ -1,50 +1,34 @@
 import { Router, type Request, type Response } from "express";
 import { sessionService } from "./session.service.js";
-import { sessionStore } from "./session.store.js";
+import db from "../../database/database.js";
 
 const router: Router = Router();
 
-// GET /api/sessions/:code — get session info by code (used by student join page)
-router.get("/:code", (req: Request, res: Response) => {
-  const { code } = req.params;
-  const session = sessionService.getSessionByCode(typeof code === 'string' ? code.toUpperCase() : '');
-
+router.get("/:code", async (req: Request, res: Response) => {
+  const session = await sessionService.getSessionByCode(req.params.code as string);
   if (!session) {
     res.status(404).json({ error: "Session not found" });
     return;
   }
-
   if (session.status === "ended") {
     res.status(410).json({ error: "Session has ended" });
     return;
   }
-
   res.json({
     sessionId: session.id,
     sessionCode: session.code,
-    studentCount: sessionService.getStudentCount(session.id),
-    createdAt: session.createdAt,
+    studentCount: await sessionService.getOnlineStudentCount(session.id as string),
+    createdAt: session.created_at,
     status: session.status,
   });
 });
 
-// GET /api/sessions/:id/students — get all students in session
-router.get("/:id/students", (req: Request, res: Response) => {
-  const session = sessionStore.findById(typeof req.params.id === 'string' ? req.params.id : '');
-
-  if (!session) {
-    res.status(404).json({ error: "Session not found" });
-    return;
-  }
-
-  const students = Array.from(session.students.values()).map((s) => ({
-    id: s.id,
-    name: s.name,
-    joinedAt: s.joinedAt,
-    isOnline: s.isOnline,
-  }));
-
-  res.json({ students });
+router.get("/:id/students", async (req: Request, res: Response) => {
+  const result = await db.execute({
+    sql: `SELECT id, name, joined_at, is_online FROM students WHERE session_id = ?`,
+    args: [req.params.id as string],
+  });
+  res.json({ students: result.rows });
 });
 
 export default router;

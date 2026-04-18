@@ -1,55 +1,64 @@
 import { Server as SocketServer, Socket } from "socket.io";
 import { studentService } from "./student.service.js";
-import { type JoinSessionPayload } from "../../types/student.types.js";
+import { logsService } from "../logs/logs.service.js";
+import { attendanceService } from "../attendance/attendance.service.js";
 
 export function registerStudentSocketEvents(io: SocketServer, socket: Socket): void {
-  // Student joins a session
-  socket.on("student:join", (payload: JoinSessionPayload) => {
-    if (!payload.sessionCode || !payload.name?.trim()) {
-      socket.emit("error", { message: "Session code and name are required" });
-      return;
+  socket.on(
+    "student:join",
+    async ({ sessionCode, name, rollNumber }: { sessionCode: string; name: string; rollNumber: string }) => {
+      if (!sessionCode || !name?.trim() || !rollNumber?.trim()) {
+        socket.emit("error", { message: "Name, roll number and session code are required" });
+        return;
+      }
+
+      const result = await studentService.joinSession(sessionCode, name, rollNumber, socket.id);
+      if (!result.success) {
+        socket.emit("student:join-error", { message: result.error });
+        return;
+      }
+
+      const { sessionId, studentId, name: studentName, rollNumber: roll, sessionCode: code } = result.data!;
+
+      socket.join(sessionId);
+      socket.emit("student:joined", result.data);
+
+      const studentList = await studentService.getStudentList(sessionId);
+      io.to(`${sessionId}:teacher`).emit("session:student-list-updated", {
+        studentList,
+        event: "joined",
+        student: { id: studentId, name: studentName, rollNumber: roll },
+      });
+
+      // Log join
+      await logsService.log(sessionId, "student_joined", {
+        studentId,
+        studentName,
+        rollNumber: roll,
+      });
+
+      console.log(`[Socket] ${studentName} (${roll}) joined session ${code}`);
     }
+  );
 
-    const result = studentService.joinSession(payload, socket.id);
+socket.on("disconnect", async () => {
+  const result = await studentService.leaveSession(socket.id);
+  if (result) {
+    // Mark leave time in attendance
+    await attendanceService.markLeave(result.sessionId, result.studentId);
 
-    if (!result.success) {
-      socket.emit("student:join-error", { message: result.error });
-      return;
-    }
-
-    const { sessionId, studentId, name, sessionCode } = result.data;
-
-    // Join student to session room
-    socket.join(sessionId);
-
-    // Confirm to student
-    socket.emit("student:joined", result.data);
-
-    // Get updated student list
-    const studentList = studentService.getStudentList(sessionId);
-
-    // Notify teacher with updated list
-    io.to(`${sessionId}:teacher`).emit("session:student-list-updated", {
+    const studentList = await studentService.getStudentList(result.sessionId);
+    io.to(`${result.sessionId}:teacher`).emit("session:student-list-updated", {
       studentList,
-      event: "joined",
-      student: { id: studentId, name },
+      event: "left",
+      student: { name: result.studentName, rollNumber: result.rollNumber },
     });
 
-    console.log(`[Socket] ${name} joined session ${sessionCode}`);
-  });
-
-  // Student disconnects
-  socket.on("disconnect", () => {
-    const result = studentService.leaveSession(socket.id);
-
-    if (result) {
-      const studentList = studentService.getStudentList(result.sessionId);
-
-      io.to(`${result.sessionId}:teacher`).emit("session:student-list-updated", {
-        studentList,
-        event: "left",
-        student: { name: result.studentName },
-      });
-    }
-  });
+    await logsService.log(result.sessionId, "student_disconnected", {
+      studentId: result.studentId,
+      studentName: result.studentName,
+      rollNumber: result.rollNumber,
+    });
+  }
+});
 }

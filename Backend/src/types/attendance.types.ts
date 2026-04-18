@@ -5,6 +5,7 @@ export interface AttendanceRecord {
   sessionId: string;
   studentId: string;
   studentName: string;
+  rollNumber: string;
   joinedAt: Date;
   leftAt: Date | null;
   status: AttendanceStatus;

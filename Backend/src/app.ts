@@ -9,10 +9,16 @@ import { config } from "./config/index.js";
 import attendanceRoutes from "./modules/attendance/attendance.routes.js";
 import sessionRoutes from "./modules/session/session.routes.js";
 import filesRoutes from "./modules/files/files.routes.js";
+import { initDatabase } from "./database/database.js";
+import logsRoutes from "./modules/logs/logs.routes.js";
 
 const app = express();
 const httpServer = http.createServer(app);
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+
+
+// --- Init Database ---
+initDatabase();
 
 // --- Middleware ---
 app.use(cors());
@@ -27,6 +33,7 @@ app.use("/uploads", express.static(path.join(moduleDir, "..", config.uploadDir))
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/files", filesRoutes);
+app.use("/api/logs", logsRoutes);
 
 // --- Health check ---
 app.get("/health", (_req, res) => {

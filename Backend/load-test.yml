@@ -1,0 +1,19 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 60
+      arrivalRate: 2
+      name: "Ramp up to 50"
+  engines:
+    socketio: {}
+
+scenarios:
+  - name: "Student joins session"
+    engine: socketio
+    flow:
+      - emit:
+          channel: "student:join"
+          data:
+            sessionCode: "REPLACE_WITH_CODE"
+            name: "Student"
+      - think: 30

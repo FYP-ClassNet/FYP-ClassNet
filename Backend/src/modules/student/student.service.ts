@@ -1,84 +1,83 @@
 import { v4 as uuidv4 } from "uuid";
-import { sessionStore } from "../session/session.store.js";
-import { type Student } from "../../types/session.types.js";
-import { type JoinSessionPayload, type StudentJoinedResponse } from "../../types/student.types.js";
+import db from "../../database/database.js";
 
 export const studentService = {
-    joinSession(
-        payload: JoinSessionPayload,
-        socketId: string
-    ): { success: true; data: StudentJoinedResponse } | { success: false; error: string } {
-        const session = sessionStore.findByCode(payload.sessionCode.toUpperCase());
+  async joinSession(sessionCode: string, name: string, rollNumber: string, socketId: string) {
+    const sessionResult = await db.execute({
+      sql: `SELECT * FROM sessions WHERE code = ? AND status = 'active'`,
+      args: [sessionCode.toUpperCase()],
+    });
+    const session = sessionResult.rows[0];
+    if (!session) return { success: false, error: "Session not found or ended" };
 
-        if (!session) {
-            return { success: false, error: "Session not found" };
-        }
+    // Check duplicate name
+    // Change duplicate name check to this:
+    const dupName = await db.execute({
+      sql: `SELECT id FROM students 
+        WHERE session_id = ? 
+        AND LOWER(name) = LOWER(?) 
+        AND is_online = 1
+        AND roll_number != ?`,
+      args: [session.id as string, name, rollNumber.trim()],
+    });
+    if (dupName.rows.length > 0) return { success: false, error: "Name already taken in this session" };
 
-        if (session.status === "ended") {
-            return { success: false, error: "Session has already ended" };
-        }
+    // Check duplicate roll number
+    const dupRoll = await db.execute({
+      sql: `SELECT id FROM students WHERE session_id = ? AND roll_number = ?`,
+      args: [session.id as string, rollNumber.trim()],
+    });
+    if (dupRoll.rows.length > 0) return { success: false, error: "Roll number already used in this session" };
 
-        // Check for duplicate name in session
-        const nameExists = Array.from(session.students.values()).some(
-            (s) => s.name.toLowerCase() === payload.name.toLowerCase() && s.isOnline
-        );
+    const studentId = uuidv4();
+    await db.execute({
+      sql: `INSERT INTO students (id, session_id, name, roll_number, socket_id) VALUES (?, ?, ?, ?, ?)`,
+      args: [studentId, session.id as string, name.trim(), rollNumber.trim(), socketId],
+    });
 
-        if (nameExists) {
-            return { success: false, error: "Name already taken in this session" };
-        }
+    console.log(`[Student] ${name} (${rollNumber}) joined session ${session.code}`);
+    return {
+      success: true,
+      data: {
+        studentId,
+        name: name.trim(),
+        rollNumber: rollNumber.trim(),
+        sessionId: session.id as string,
+        sessionCode: session.code as string,
+      },
+    };
+  },
 
-        const studentId = uuidv4();
+  async leaveSession(socketId: string) {
+    const result = await db.execute({
+      sql: `SELECT s.*, ss.id as sess_id, ss.code as sess_code
+          FROM students s
+          JOIN sessions ss ON ss.id = s.session_id
+          WHERE s.socket_id = ? AND s.is_online = 1`,
+      args: [socketId],
+    });
+    const student = result.rows[0];
+    if (!student) return null;
 
-        const student: Student = {
-            id: studentId,
-            name: payload.name.trim(),
-            socketId,
-            joinedAt: new Date(),
-            isOnline: true,
-        };
+    // Use id directly — more reliable than socketId
+    await db.execute({
+      sql: `UPDATE students SET is_online = 0 WHERE id = ?`,
+      args: [student.id as string],
+    });
 
-        session.students.set(studentId, student);
-        sessionStore.save(session);
+    return {
+      sessionId: student.sess_id as string,
+      studentId: student.id as string,
+      studentName: student.name as string,
+      rollNumber: student.roll_number as string,
+    };
+  },
 
-        console.log(`[Student] ${payload.name} joined session ${session.code}`);
-
-        return {
-            success: true,
-            data: {
-                studentId,
-                name: student.name,
-                sessionId: session.id,
-                sessionCode: session.code,
-            },
-        };
-    },
-
-    leaveSession(socketId: string): { sessionId: string; studentName: string } | null {
-        const sessions = sessionStore.getAll();
-
-        for (const session of sessions) {
-            for (const [, student] of session.students) {
-                if (student.socketId === socketId && student.isOnline) {
-                    student.isOnline = false;
-                    sessionStore.save(session);
-                    console.log(`[Student] ${student.name} left session ${session.code}`);
-                    return { sessionId: session.id, studentName: student.name };
-                }
-            }
-        }
-
-        return null;
-    },
-
-    getStudentList(sessionId: string) {
-        const session = sessionStore.findById(sessionId);
-        if (!session) return [];
-
-        return Array.from(session.students.values()).map((s) => ({
-            id: s.id,
-            name: s.name,
-            joinedAt: s.joinedAt,
-            isOnline: s.isOnline,
-        }));
-    },
+  async getStudentList(sessionId: string) {
+    const result = await db.execute({
+      sql: `SELECT id, name, roll_number, joined_at, is_online FROM students WHERE session_id = ?`,
+      args: [sessionId],
+    });
+    return result.rows;
+  },
 };

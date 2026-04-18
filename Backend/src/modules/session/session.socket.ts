@@ -1,52 +1,45 @@
 import { Server as SocketServer, Socket } from "socket.io";
 import { sessionService } from "./session.service.js";
-import { sessionStore } from "./session.store.js";
+import { logsService } from "../logs/logs.service.js";
 
 export function registerSessionSocketEvents(io: SocketServer, socket: Socket): void {
-  // Teacher creates a session
-  socket.on("session:create", () => {
-    const result = sessionService.createSession({
-      teacherSocketId: socket.id,
-    });
-
+  socket.on("session:create", async () => {
+    const result = await sessionService.createSession(socket.id);
     socket.join(result.sessionId);
     socket.join(`${result.sessionId}:teacher`);
-
     socket.emit("session:created", result);
-    console.log(`[Socket] Teacher ${socket.id} created session ${result.sessionCode}`);
+
+    // Log session started
+    await logsService.log(result.sessionId, "session_started");
+    console.log(`[Session] Created: ${result.sessionCode}`);
   });
 
-  // Teacher ends the session
-  socket.on("session:end", ({ sessionId }: { sessionId: string }) => {
-    const session = sessionService.getSession(sessionId);
-
+  socket.on("session:end", async ({ sessionId }: { sessionId: string }) => {
+    const session = await sessionService.getSessionById(sessionId);
     if (!session) {
       socket.emit("error", { message: "Session not found" });
       return;
     }
-
-    if (session.teacherSocketId !== socket.id) {
+    if (session.teacher_socket_id !== socket.id) {
       socket.emit("error", { message: "Only the teacher can end the session" });
       return;
     }
 
-    sessionService.endSession(sessionId);
+    await sessionService.endSession(sessionId);
+    await logsService.log(sessionId, "session_ended");
     io.to(sessionId).emit("session:ended", { message: "Teacher has ended the session" });
-    console.log(`[Socket] Session ${session.code} ended by teacher`);
   });
 
-  // Handle teacher disconnect
-  socket.on("disconnect", () => {
-    const sessions = sessionStore.getAll();
-
-    for (const session of sessions) {
-      if (session.teacherSocketId === socket.id && session.status === "active") {
-        sessionService.endSession(session.id);
-        io.to(session.id).emit("session:ended", {
-          message: "Teacher disconnected. Session has ended.",
-        });
-        console.log(`[Socket] Session ${session.code} ended due to teacher disconnect`);
-      }
+  socket.on("disconnect", async () => {
+    const session = await sessionService.getActiveSessionByTeacherSocket(socket.id);
+    if (session) {
+      await sessionService.endSession(session.id as string);
+      await logsService.log(session.id as string, "session_ended", {
+        data: { reason: "teacher_disconnected" },
+      });
+      io.to(session.id as string).emit("session:ended", {
+        message: "Teacher disconnected. Session has ended.",
+      });
     }
   });
 }

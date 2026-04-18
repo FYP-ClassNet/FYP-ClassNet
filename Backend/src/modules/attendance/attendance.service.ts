@@ -1,79 +1,102 @@
 import { v4 as uuidv4 } from "uuid";
-import { attendanceStore } from "./attendance.store.js";
-import { type AttendanceRecord, type AttendanceStatus, type AttendanceSummary } from "../student/attendance.types.js";
-import { sessionStore } from "../session/session.store.js";
+import db from "../../database/database.js";
+import type { AttendanceRecord, AttendanceStatus } from "../../types/attendance.types.js";
 
-// Late threshold in minutes — can be made configurable later
 const LATE_THRESHOLD_MINUTES = 10;
 
+function toAttendanceRecord(row: Record<string, unknown>, reconnectCountOverride?: number): AttendanceRecord {
+  return {
+    id: String(row.id),
+    sessionId: String(row.session_id),
+    studentId: String(row.student_id),
+    studentName: String(row.student_name),
+    rollNumber: String(row.roll_number),
+    joinedAt: new Date(String(row.joined_at)),
+    leftAt: row.left_at ? new Date(String(row.left_at)) : null,
+    status: String(row.status) as AttendanceStatus,
+    reconnectCount: reconnectCountOverride ?? Number(row.reconnect_count ?? 0),
+    totalOnlineSeconds: Number(row.total_online_seconds ?? 0),
+  };
+}
+
+
 export const attendanceService = {
-    markJoin(sessionId: string, studentId: string, studentName: string): AttendanceRecord {
-        const session = sessionStore.findById(sessionId);
-        const now = new Date();
+  async markJoin(sessionId: string, studentId: string, studentName: string, rollNumber: string): Promise<AttendanceRecord> {
+    // Replace the time diff calculation with this:
+    const sessionResult = await db.execute({
+      sql: `SELECT created_at FROM sessions WHERE id = ?`,
+      args: [sessionId],
+    });
+    const session = sessionResult.rows[0];
+    const now = new Date();
 
-        // Determine if late
-        let status: AttendanceStatus = "present";
-        if (session) {
-            const sessionStartMs = new Date(session.createdAt).getTime();
-            const joinedMs = now.getTime();
-            const diffMinutes = (joinedMs - sessionStartMs) / 1000 / 60;
+    // Parse as UTC explicitly
+    const sessionStart = session?.created_at
+      ? new Date((session.created_at as string).replace(" ", "T") + "Z")
+      : now;
 
-            if (diffMinutes > LATE_THRESHOLD_MINUTES) {
-                status = "late";
-            }
-        }
+    const diffMinutes = (now.getTime() - sessionStart.getTime()) / 1000 / 60;
+    const status = diffMinutes > LATE_THRESHOLD_MINUTES ? "late" : "present";
 
-        // Check if reconnecting
-        const existing = attendanceStore.findOne(sessionId, studentId);
-        if (existing) {
-            existing.reconnectCount += 1;
-            existing.status = existing.status === "late" ? "late" : status;
-            attendanceStore.save(existing);
-            console.log(`[Attendance] ${studentName} reconnected (x${existing.reconnectCount})`);
-            return existing;
-        }
+    const existingResult = await db.execute({
+      sql: `SELECT * FROM attendance WHERE session_id = ? AND student_id = ?`,
+      args: [sessionId, studentId],
+    });
 
-        const record: AttendanceRecord = {
-            id: uuidv4(),
-            sessionId,
-            studentId,
-            studentName,
-            joinedAt: now,
-            leftAt: null,
-            status,
-            reconnectCount: 0,
-            totalOnlineSeconds: 0,
-        };
+    if (existingResult.rows.length > 0) {
+      await db.execute({
+        sql: `UPDATE attendance SET reconnect_count = reconnect_count + 1 WHERE session_id = ? AND student_id = ?`,
+        args: [sessionId, studentId],
+      });
+      return {
+        ...toAttendanceRecord(existingResult?.rows[0] as Record<string, unknown>, Number(existingResult?.rows[0]?.reconnect_count) + 1),
+      };
+    }
 
-        attendanceStore.save(record);
-        console.log(`[Attendance] ${studentName} marked as ${status}`);
-        return record;
-    },
+    const id = uuidv4();
+    await db.execute({
+      sql: `INSERT INTO attendance (id, session_id, student_id, student_name, roll_number, status)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [id, sessionId, studentId, studentName, rollNumber, status],
+    });
 
-    markLeave(sessionId: string, studentId: string): void {
-        const record = attendanceStore.findOne(sessionId, studentId);
-        if (!record) return;
+    console.log(`[Attendance] ${studentName} (${rollNumber}) marked as ${status}`);
+    return toAttendanceRecord({ id, session_id: sessionId, student_id: studentId, student_name: studentName, roll_number: rollNumber, status, reconnect_count: 0 });
+  },
 
-        const now = new Date();
-        record.leftAt = now;
+  async markLeave(sessionId: string, studentId: string): Promise<void> {
+    const result = await db.execute({
+      sql: `SELECT joined_at FROM attendance WHERE session_id = ? AND student_id = ?`,
+      args: [sessionId, studentId],
+    });
+    const record = result.rows[0];
+    if (!record) return;
 
-        // Accumulate online time
-        const joinMs = new Date(record.joinedAt).getTime();
-        record.totalOnlineSeconds += Math.floor((now.getTime() - joinMs) / 1000);
+    const now = new Date();
+    // Parse UTC correctly
+    const joinedAt = new Date((record.joined_at as string).replace(" ", "T") + "Z");
+    const seconds = Math.floor((now.getTime() - joinedAt.getTime()) / 1000);
 
-        attendanceStore.save(record);
-        console.log(`[Attendance] ${record.studentName} left — online ${record.totalOnlineSeconds}s`);
-    },
+    await db.execute({
+      sql: `UPDATE attendance
+          SET left_at = CURRENT_TIMESTAMP, total_online_seconds = total_online_seconds + ?
+          WHERE session_id = ? AND student_id = ?`,
+      args: [seconds, sessionId, studentId],
+    });
+  },
 
-    getSummary(sessionId: string): AttendanceSummary {
-        const records = attendanceStore.findBySession(sessionId);
-
-        return {
-            total: records.length,
-            present: records.filter((r) => r.status === "present").length,
-            late: records.filter((r) => r.status === "late").length,
-            absent: records.filter((r) => r.status === "absent").length,
-            records,
-        };
-    },
+  async getSummary(sessionId: string) {
+    const result = await db.execute({
+      sql: `SELECT * FROM attendance WHERE session_id = ?`,
+      args: [sessionId],
+    });
+    const records = result.rows;
+    return {
+      total: records.length,
+      present: records.filter((r) => r.status === "present").length,
+      late: records.filter((r) => r.status === "late").length,
+      absent: records.filter((r) => r.status === "absent").length,
+      records,
+    };
+  },
 };
