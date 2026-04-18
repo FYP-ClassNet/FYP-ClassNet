@@ -84,6 +84,45 @@ export async function initDatabase(): Promise<void> {
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (session_id) REFERENCES sessions(id)
     );
+
+    CREATE TABLE IF NOT EXISTS quizzes (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  mode TEXT NOT NULL,
+  total_questions INTEGER NOT NULL,
+  status TEXT DEFAULT 'active',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  ended_at DATETIME,
+  FOREIGN KEY (session_id) REFERENCES sessions(id)
+);
+
+CREATE TABLE IF NOT EXISTS quiz_questions (
+  id TEXT PRIMARY KEY,
+  quiz_id TEXT NOT NULL,
+  question_number INTEGER NOT NULL,
+  question_text TEXT,
+  option_a TEXT,
+  option_b TEXT,
+  option_c TEXT,
+  option_d TEXT,
+  correct_option TEXT,
+  FOREIGN KEY (quiz_id) REFERENCES quizzes(id)
+);
+
+CREATE TABLE IF NOT EXISTS quiz_answers (
+  id TEXT PRIMARY KEY,
+  quiz_id TEXT NOT NULL,
+  question_id TEXT NOT NULL,
+  student_id TEXT NOT NULL,
+  student_name TEXT NOT NULL,
+  roll_number TEXT NOT NULL,
+  selected_option TEXT NOT NULL,
+  is_correct INTEGER,
+  answered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(quiz_id, question_id, student_id),
+  FOREIGN KEY (quiz_id) REFERENCES quizzes(id)
+);
   `);
 
   console.log("[DB] Database initialized at", DB_PATH);

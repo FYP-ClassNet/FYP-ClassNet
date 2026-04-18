@@ -5,6 +5,7 @@ import { registerStudentSocketEvents } from "../modules/student/student.socket.j
 import { registerAttendanceSocketEvents } from "../modules/attendance/attendance.socket.js";
 import { registerFilesSocketEvents } from "../modules/files/files.socket.js";
 import { registerHandSocketEvents } from "../modules/hand/hand.socket.js";
+import { registerQuizSocketEvents } from "../modules/quiz/quiz.socket.js";
 
 let io: SocketServer;
 
@@ -24,6 +25,7 @@ export function initSocket(httpServer: HttpServer): SocketServer {
      registerAttendanceSocketEvents(io, socket);
      registerFilesSocketEvents(io, socket);
          registerHandSocketEvents(io, socket);
+             registerQuizSocketEvents(io, socket);
 
     socket.on("disconnect", () => {
       console.log(`[Socket] Client disconnected: ${socket.id}`);

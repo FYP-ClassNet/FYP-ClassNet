@@ -25,7 +25,7 @@ router.get("/:code", async (req: Request, res: Response) => {
 
 router.get("/:id/students", async (req: Request, res: Response) => {
   const result = await db.execute({
-    sql: `SELECT id, name, joined_at, is_online FROM students WHERE session_id = ?`,
+    sql: `SELECT id, name, roll_number, joined_at, is_online FROM students WHERE session_id = ?`,
     args: [req.params.id as string],
   });
   res.json({ students: result.rows });

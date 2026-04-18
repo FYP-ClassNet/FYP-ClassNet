@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import db from "../../database/database.js";
 import { getLocalIP } from "../../utils/getLocalIP.js";
-import { config } from "../../config/index.js";
 
 export const sessionService = {
   async createSession(teacherSocketId: string) {
@@ -18,7 +17,9 @@ export const sessionService = {
     return {
       sessionId,
       sessionCode,
-      lanUrl: `http://${localIP}:${config.port}/join/${sessionCode}`,
+
+      lanUrl: `http://${localIP}:5173/join/${sessionCode}`,
+
     };
   },
 

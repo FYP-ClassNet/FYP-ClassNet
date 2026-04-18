@@ -12,15 +12,15 @@ export const studentService = {
 
     // Check duplicate name
     // Change duplicate name check to this:
-    const dupName = await db.execute({
-      sql: `SELECT id FROM students 
-        WHERE session_id = ? 
-        AND LOWER(name) = LOWER(?) 
-        AND is_online = 1
-        AND roll_number != ?`,
-      args: [session.id as string, name, rollNumber.trim()],
-    });
-    if (dupName.rows.length > 0) return { success: false, error: "Name already taken in this session" };
+    // const dupName = await db.execute({
+    //   sql: `SELECT id FROM students 
+    //     WHERE session_id = ? 
+    //     AND LOWER(name) = LOWER(?) 
+    //     AND is_online = 1
+    //     AND roll_number != ?`,
+    //   args: [session.id as string, name, rollNumber.trim()],
+    // });
+    // if (dupName.rows.length > 0) return { success: false, error: "Name already taken in this session" };
 
     // Check duplicate roll number
     const dupRoll = await db.execute({

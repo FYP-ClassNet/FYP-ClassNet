@@ -11,6 +11,7 @@ import sessionRoutes from "./modules/session/session.routes.js";
 import filesRoutes from "./modules/files/files.routes.js";
 import { initDatabase } from "./database/database.js";
 import logsRoutes from "./modules/logs/logs.routes.js";
+import quizRoutes from "./modules/quiz/quiz.routes.js";
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -34,6 +35,7 @@ app.use("/api/sessions", sessionRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/files", filesRoutes);
 app.use("/api/logs", logsRoutes);
+app.use("/api/quiz", quizRoutes);
 
 // --- Health check ---
 app.get("/health", (_req, res) => {
