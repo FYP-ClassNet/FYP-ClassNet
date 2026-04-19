@@ -123,6 +123,22 @@ CREATE TABLE IF NOT EXISTS quiz_answers (
   UNIQUE(quiz_id, question_id, student_id),
   FOREIGN KEY (quiz_id) REFERENCES quizzes(id)
 );
+
+CREATE TABLE IF NOT EXISTS oral_grades (
+  id TEXT PRIMARY KEY,
+  quiz_id TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  student_id TEXT NOT NULL,
+  student_name TEXT NOT NULL,
+  roll_number TEXT NOT NULL,
+  marks_obtained REAL NOT NULL,
+  total_marks REAL NOT NULL,
+  remarks TEXT,
+  graded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(quiz_id, student_id),
+  FOREIGN KEY (quiz_id) REFERENCES quizzes(id)
+);
+
   `);
 
   console.log("[DB] Database initialized at", DB_PATH);

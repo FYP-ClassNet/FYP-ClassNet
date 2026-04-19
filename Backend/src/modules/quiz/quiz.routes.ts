@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import multer from "multer";
 import { quizService } from "./quiz.service.js";
 
-const router : Router = Router();
+const router: Router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // POST /api/quiz/:sessionId/oral — create oral quiz
@@ -75,6 +75,36 @@ router.post("/:quizId/end", async (req: Request, res: Response) => {
     return;
   }
   res.json({ success: true });
+});
+
+// POST /api/quiz/:quizId/grade — teacher grades a student
+router.post("/:quizId/grade", async (req: Request, res: Response) => {
+  const { quizId } = req.params;
+  const { sessionId, studentId, studentName, rollNumber, marksObtained, totalMarks, remarks } = req.body;
+
+  if (!studentId || marksObtained === undefined || !totalMarks) {
+    res.status(400).json({ error: "studentId, marksObtained and totalMarks are required" });
+    return;
+  }
+
+  await quizService.gradeStudent(
+    quizId as string,
+    sessionId,
+    studentId,
+    studentName,
+    rollNumber,
+    Number(marksObtained),
+    Number(totalMarks),
+    remarks ?? ""
+  );
+
+  res.json({ success: true });
+});
+
+// GET /api/quiz/:quizId/oral-results — get oral quiz results
+router.get("/:quizId/oral-results", async (req: Request, res: Response) => {
+  const results = await quizService.getOralResults(req.params.quizId as string);
+  res.json({ results });
 });
 
 export default router;

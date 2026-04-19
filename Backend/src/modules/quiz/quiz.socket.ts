@@ -68,19 +68,18 @@ export function registerQuizSocketEvents(io: SocketServer, socket: Socket): void
     );
 
     // Teacher ends quiz — broadcast results to teacher only
-    socket.on("quiz:end", async ({ sessionId, quizId }: { sessionId: string; quizId: string }) => {
-        await quizService.endQuiz(quizId);
+  socket.on("quiz:end", async ({ sessionId, quizId }: { sessionId: string; quizId: string }) => {
+  await quizService.endQuiz(quizId);
 
-        // Notify students quiz ended
-        io.to(sessionId).emit("quiz:ended", { message: "Quiz has ended" });
+  // Verify it ended
+  const quiz = await quizService.getQuiz(quizId);
+  console.log(`[Quiz] Status after end: ${quiz?.status}`);
 
-        // Send results to teacher only
-        const results = await quizService.getResults(quizId);
-        socket.emit("quiz:results", { results });
+  io.to(sessionId).emit("quiz:ended", { message: "Quiz has ended" });
 
-        console.log(`[Quiz] Ended: ${quizId} — ${results.length} students participated`);
-    });
-
+  const results = await quizService.getResults(quizId);
+  socket.emit("quiz:results", { results });
+});
     // Teacher requests results anytime
     socket.on("quiz:get-results", async ({ quizId }: { quizId: string }) => {
         const results = await quizService.getResults(quizId);

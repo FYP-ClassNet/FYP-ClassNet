@@ -3,30 +3,7 @@ import db from "../../database/database.js";
 import type { QuizQuestion, QuizResult } from "../../types/quiz.types.js";
 
 export const quizService = {
-    // Create oral quiz — no questions, just a count
-    async createOralQuiz(sessionId: string, title: string, totalQuestions: number) {
-        const quizId = uuidv4();
 
-        await db.execute({
-            sql: `INSERT INTO quizzes (id, session_id, title, mode, total_questions)
-            VALUES (?, ?, ?, 'oral', ?)`,
-            args: [quizId, sessionId, title, totalQuestions],
-        });
-
-        // Create blank question slots
-        for (let i = 1; i <= totalQuestions; i++) {
-            await db.execute({
-                sql: `INSERT INTO quiz_questions (id, quiz_id, question_number, question_text)
-              VALUES (?, ?, ?, ?)`,
-                args: [uuidv4(), quizId, i, `Question ${i}`],
-            });
-        }
-
-        const quiz = await quizService.getQuiz(quizId);
-        const questions = await quizService.getQuestions(quizId);
-        console.log(`[Quiz] Oral quiz created: ${title} (${totalQuestions} questions)`);
-        return { quiz, questions };
-    },
 
     // Create CSV quiz — questions parsed from CSV
     async createCsvQuiz(
@@ -77,7 +54,10 @@ export const quizService = {
 
     async getActiveQuizBySession(sessionId: string) {
         const result = await db.execute({
-            sql: `SELECT * FROM quizzes WHERE session_id = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1`,
+            sql: `SELECT * FROM quizzes 
+          WHERE session_id = ? 
+          AND status = 'active' 
+          ORDER BY created_at DESC LIMIT 1`,
             args: [sessionId],
         });
         return result.rows[0] ?? null;
@@ -240,5 +220,50 @@ export const quizService = {
         }
 
         return questions;
+    },
+
+    async createOralQuiz(sessionId: string, title: string, totalMarks: number) {
+        const quizId = uuidv4();
+
+        await db.execute({
+            sql: `INSERT INTO quizzes (id, session_id, title, mode, total_questions)
+          VALUES (?, ?, ?, 'oral', ?)`,
+            args: [quizId, sessionId, title, totalMarks],
+        });
+
+        console.log(`[Quiz] Oral quiz created: ${title} (total marks: ${totalMarks})`);
+        const quiz = await quizService.getQuiz(quizId);
+        return { quiz };
+    },
+
+    async gradeStudent(
+        quizId: string,
+        sessionId: string,
+        studentId: string,
+        studentName: string,
+        rollNumber: string,
+        marksObtained: number,
+        totalMarks: number,
+        remarks: string
+    ) {
+        await db.execute({
+            sql: `INSERT INTO oral_grades (id, quiz_id, session_id, student_id, student_name, roll_number, marks_obtained, total_marks, remarks)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(quiz_id, student_id)
+          DO UPDATE SET marks_obtained = excluded.marks_obtained,
+                        remarks = excluded.remarks,
+                        graded_at = CURRENT_TIMESTAMP`,
+            args: [uuidv4(), quizId, sessionId, studentId, studentName, rollNumber, marksObtained, totalMarks, remarks],
+        });
+
+        console.log(`[Quiz] Graded ${studentName}: ${marksObtained}/${totalMarks}`);
+    },
+
+    async getOralResults(quizId: string) {
+        const result = await db.execute({
+            sql: `SELECT * FROM oral_grades WHERE quiz_id = ? ORDER BY marks_obtained DESC`,
+            args: [quizId],
+        });
+        return result.rows;
     },
 };
