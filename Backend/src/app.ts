@@ -12,6 +12,7 @@ import filesRoutes from "./modules/files/files.routes.js";
 import { initDatabase } from "./database/database.js";
 import logsRoutes from "./modules/logs/logs.routes.js";
 import quizRoutes from "./modules/quiz/quiz.routes.js";
+import streamRoutes from "./modules/stream/stream.routes.js";
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -23,11 +24,37 @@ initDatabase();
 
 // --- Middleware ---
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.raw({ type: "image/jpeg", limit: "2mb" }));
+
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/stream") && req.method === "POST") {
+    return next(); // skip body parsing for stream frames
+  }
+  express.json()(req, res, next);
+});
+
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/stream") && req.method === "POST") {
+    return next();
+  }
+  express.urlencoded({ extended: true })(req, res, next);
+});
 
 // --- Static file serving (uploads) ---
 app.use("/uploads", express.static(path.join(moduleDir, "..", config.uploadDir)));
+
+app.use((req, res, next) => {
+  if (req.headers['content-type'] === 'image/jpeg') {
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => {
+      (req as any).rawBody = Buffer.concat(chunks);
+      next();
+    });
+  } else {
+    next();
+  }
+});
 
 
 // --- Routes ---
@@ -36,6 +63,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/files", filesRoutes);
 app.use("/api/logs", logsRoutes);
 app.use("/api/quiz", quizRoutes);
+app.use("/api/stream", streamRoutes);
 
 // --- Health check ---
 app.get("/health", (_req, res) => {
