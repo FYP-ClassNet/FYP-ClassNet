@@ -54,33 +54,24 @@ export function useStudentSession() {
       }
     });
 
-    socket.on("student:joined", (data: StudentData) => {
-      setStudentData(data);
-      setIsLoading(false);
-      setError(null);
-      setSessionEnded(false);
-      setTeacherReconnecting(false);
+   socket.on("student:joined", (data: StudentData) => {
+  setStudentData(data);
+  setIsLoading(false);
+  setError(null);
+  setSessionEnded(false);
 
-      // Save to sessionStorage
-      sessionStorage.setItem(STUDENT_KEY, JSON.stringify({
-        studentId: data.studentId,
-        name: data.name,
-        rollNumber: data.rollNumber,
-        sessionId: data.sessionId,
-        sessionCode: data.sessionCode,
-      }));
+  socket.emit("attendance:mark", {
+    sessionId: data.sessionId,
+    studentId: data.studentId,
+    studentName: data.name,
+    rollNumber: data.rollNumber,
+  });
 
-      // Mark attendance
-      socket.emit("attendance:mark", {
-        sessionId: data.sessionId,
-        studentId: data.studentId,
-        studentName: data.name,
-        rollNumber: data.rollNumber,
-      });
+  socket.emit("files:get-all", { sessionId: data.sessionId });
 
-      // Fetch existing files
-      socket.emit("files:get-all", { sessionId: data.sessionId });
-    });
+  // Check if teacher is already streaming
+  socket.emit("stream:check", { sessionId: data.sessionId });
+});
 
     socket.on("student:join-error", ({ message }: { message: string }) => {
       setError(message);
