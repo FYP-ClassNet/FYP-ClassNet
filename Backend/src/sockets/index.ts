@@ -7,6 +7,7 @@ import { registerFilesSocketEvents } from "../modules/files/files.socket.js";
 import { registerHandSocketEvents } from "../modules/hand/hand.socket.js";
 import { registerQuizSocketEvents } from "../modules/quiz/quiz.socket.js";
 import { registerStreamSocketEvents } from "../modules/stream/stream.socket.js";
+import { registerSfuSocketEvents } from "../modules/sfu/sfu.socket.js";
 
 let io: SocketServer;
 
@@ -28,6 +29,7 @@ export function initSocket(httpServer: HttpServer): SocketServer {
          registerHandSocketEvents(io, socket);
              registerQuizSocketEvents(io, socket);
            registerStreamSocketEvents(io, socket);  
+           registerSfuSocketEvents(io, socket);
 
     socket.on("disconnect", () => {
       console.log(`[Socket] Client disconnected: ${socket.id}`);
