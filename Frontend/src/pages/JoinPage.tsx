@@ -3,7 +3,10 @@ import { useStudentSession } from "../hooks/useStudentSession";
 import { useState } from "react";
 import { useQuiz } from "../hooks/useQuiz";
 import { QuizPanel } from "../components/student/QuizPanel";
-import { StreamViewer } from "../components/student/StreamViewer";
+import { SfuViewer } from "../components/student/SfuViewer";
+
+// Replace StreamViewer with:
+
 
 // Replace old ScreenViewer with:
 
@@ -94,8 +97,7 @@ export function JoinPage() {
             </div>
           )}
           {/* Screen Viewer — shown always, hides when not sharing */}
-         <StreamViewer sessionId={studentData.sessionId} />
-
+       <SfuViewer sessionId={studentData.sessionId} />
           {/* Raise Hand */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex flex-col gap-3">
             <p className="text-zinc-500 text-sm text-center">Have a question?</p>

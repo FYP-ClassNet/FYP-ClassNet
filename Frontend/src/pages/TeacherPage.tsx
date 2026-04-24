@@ -3,7 +3,7 @@ import { useTeacherQuiz } from "../hooks/useTeacherQuiz";
 import { useState, useEffect } from "react";
 import { FileUpload } from "../components/teacher/FileUpload";
 import { QuizManager } from "../components/teacher/QuizManager";
-import { StreamControl } from "../components/teacher/StreamControl";
+import { SfuScreenShare } from "../components/teacher/SfuScreenShare";
 import { Whiteboard } from "../components/teacher/Whiteboard";
 import { useStream } from "../hooks/useStream";
 import { exportAttendanceCsv } from "../lib/exportCsv";
@@ -40,20 +40,20 @@ export function TeacherPage() {
     raisedHands,
     isConnected,
     isLoading,
-      isRejoining, 
+    isRejoining,
     createSession,
     endSession,
     dismissHand,
   } = useTeacherSession();
 
   const {
-  isStreaming,
-  streamMode,
-  startScreenShare,
-  startWhiteboard,
-  stopCapture,
-  postWhiteboardFrame,
-} = useStream(session?.sessionId);
+    isStreaming,
+    streamMode,
+    startScreenShare,
+    startWhiteboard,
+    stopCapture,
+    postWhiteboardFrame,
+  } = useStream(session?.sessionId);
 
   const quizState = useTeacherQuiz(session?.sessionId);
 
@@ -100,18 +100,18 @@ export function TeacherPage() {
   const lateCount = attendance.filter((a) => a.status === "late").length;
 
   // ── Connecting ──
-if (!isConnected || isRejoining) {
-  return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-10 h-10 border-2 border-zinc-700 border-t-emerald-500 rounded-full animate-spin" />
-        <p className="text-zinc-500 text-sm">
-          {isRejoining ? "Rejoining session..." : "Connecting to server..."}
-        </p>
+  if (!isConnected || isRejoining) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-zinc-700 border-t-emerald-500 rounded-full animate-spin" />
+          <p className="text-zinc-500 text-sm">
+            {isRejoining ? "Rejoining session..." : "Connecting to server..."}
+          </p>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   // ── No Session ──
   if (!session) {
@@ -157,7 +157,7 @@ if (!isConnected || isRejoining) {
     );
   }
 
-  
+
 
   const navItems: { id: ActivePanel; label: string; icon: string; badge?: number }[] = [
     { id: "students", label: "Students", icon: "👥", badge: onlineCount },
@@ -184,11 +184,7 @@ if (!isConnected || isRejoining) {
         </div>
 
         <div className="flex items-center gap-3">
-         {session && (
-  <StreamControl
-    sessionId={session.sessionId}
-  />
-)}
+          {session && <SfuScreenShare sessionId={session.sessionId} />}
           <button
             onClick={() => navigate("/reports")}
             className="text-zinc-400 hover:text-white text-sm px-3 py-1.5 rounded-lg hover:bg-zinc-800 transition-all"
@@ -208,40 +204,40 @@ if (!isConnected || isRejoining) {
 
         {/* Sidebar */}
         <aside className="w-72 bg-zinc-900 border-r border-zinc-800 flex flex-col shrink-0">
-        <div className="p-5 border-b border-zinc-800">
-  <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-3">
-    Session Code
-  </p>
-  <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-4 text-center mb-3">
-    <span className="text-white text-3xl font-bold tracking-[0.25em]">
-      {session.sessionCode}
-    </span>
-  </div>
-  <div className="flex gap-2 mb-3">
-    <button
-      onClick={() => copy(session.sessionCode, "code")}
-      className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-2 rounded-lg transition-colors"
-    >
-      {copied === "code" ? "✓ Copied!" : "Copy Code"}
-    </button>
-    <button
-      onClick={() => copy(session.lanUrl, "url")}
-      className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-2 rounded-lg transition-colors"
-    >
-      {copied === "url" ? "✓ Copied!" : "Copy URL"}
-    </button>
-  </div>
+          <div className="p-5 border-b border-zinc-800">
+            <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-3">
+              Session Code
+            </p>
+            <div className="bg-zinc-950 border border-zinc-700 rounded-xl p-4 text-center mb-3">
+              <span className="text-white text-3xl font-bold tracking-[0.25em]">
+                {session.sessionCode}
+              </span>
+            </div>
+            <div className="flex gap-2 mb-3">
+              <button
+                onClick={() => copy(session.sessionCode, "code")}
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-2 rounded-lg transition-colors"
+              >
+                {copied === "code" ? "✓ Copied!" : "Copy Code"}
+              </button>
+              <button
+                onClick={() => copy(session.lanUrl, "url")}
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-2 rounded-lg transition-colors"
+              >
+                {copied === "url" ? "✓ Copied!" : "Copy URL"}
+              </button>
+            </div>
 
-  {/* QR Code */}
-  <SessionQRCode
-    sessionCode={session.sessionCode}
-    lanUrl={session.lanUrl}
-  />
+            {/* QR Code */}
+            <SessionQRCode
+              sessionCode={session.sessionCode}
+              lanUrl={session.lanUrl}
+            />
 
-  <p className="text-zinc-600 text-xs font-mono mt-2 truncate text-center">
-    {session.lanUrl}
-  </p>
-</div>
+            <p className="text-zinc-600 text-xs font-mono mt-2 truncate text-center">
+              {session.lanUrl}
+            </p>
+          </div>
 
           <div className="p-5 border-b border-zinc-800">
             <p className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-3">Live Stats</p>
@@ -267,20 +263,18 @@ if (!isConnected || isRejoining) {
               <button
                 key={item.id}
                 onClick={() => setActivePanel(item.id)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  activePanel === item.id
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activePanel === item.id
                     ? "bg-emerald-600/20 text-emerald-400 border border-emerald-600/30"
                     : "text-zinc-400 hover:text-white hover:bg-zinc-800"
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2.5">
                   <span>{item.icon}</span>
                   <span>{item.label}</span>
                 </div>
                 {item.badge !== undefined && item.badge > 0 && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    activePanel === item.id ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-700 text-zinc-400"
-                  }`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${activePanel === item.id ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-700 text-zinc-400"
+                    }`}>
                     {item.badge}
                   </span>
                 )}
@@ -347,9 +341,8 @@ if (!isConnected || isRejoining) {
                         {raisedHands.find((h) => h.studentId === s.id) && (
                           <span className="text-sm animate-bounce">✋</span>
                         )}
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                          s.isOnline ? "bg-emerald-500/10 text-emerald-400" : "bg-zinc-800 text-zinc-500"
-                        }`}>
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${s.isOnline ? "bg-emerald-500/10 text-emerald-400" : "bg-zinc-800 text-zinc-500"
+                          }`}>
                           {s.isOnline ? "Online" : "Offline"}
                         </span>
                       </div>
@@ -392,13 +385,12 @@ if (!isConnected || isRejoining) {
                         <p className="text-white text-sm font-medium">{a.student_name}</p>
                         <p className="text-zinc-500 text-xs">{a.roll_number}</p>
                       </div>
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                        a.status === "present"
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${a.status === "present"
                           ? "bg-emerald-500/10 text-emerald-400"
                           : a.status === "late"
-                          ? "bg-yellow-500/10 text-yellow-400"
-                          : "bg-red-500/10 text-red-400"
-                      }`}>
+                            ? "bg-yellow-500/10 text-yellow-400"
+                            : "bg-red-500/10 text-red-400"
+                        }`}>
                         {a.status}
                       </span>
                     </div>
@@ -428,88 +420,86 @@ if (!isConnected || isRejoining) {
           )}
 
           {/* Screen Panel */}
-      {activePanel === "screen" && (
-  <div className="flex flex-col gap-4">
-    {/* Mode switcher */}
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-3">
-      <p className="text-zinc-400 text-sm mr-2">Mode:</p>
-      <button
-        onClick={() => {
-          if (isStreaming && streamMode === "whiteboard") stopCapture();
-          startScreenShare();
-        }}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${
-          isStreaming && streamMode === "screen"
-            ? "bg-blue-600 text-white"
-            : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
-        }`}
-      >
-        🖥️ Screen Share
-      </button>
-      <button
-        onClick={() => {
-          if (isStreaming && streamMode === "screen") stopCapture();
-          startWhiteboard();
-        }}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${
-          isStreaming && streamMode === "whiteboard"
-            ? "bg-emerald-600 text-white"
-            : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
-        }`}
-      >
-        🎨 Whiteboard
-      </button>
-      {isStreaming && (
-        <button
-          onClick={stopCapture}
-          className="ml-auto bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white text-sm px-4 py-2 rounded-lg transition-all"
-        >
-          Stop Streaming
-        </button>
-      )}
-    </div>
+          {activePanel === "screen" && (
+            <div className="flex flex-col gap-4">
+              {/* Mode switcher */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-3">
+                <p className="text-zinc-400 text-sm mr-2">Mode:</p>
+                <button
+                  onClick={() => {
+                    if (isStreaming && streamMode === "whiteboard") stopCapture();
+                    startScreenShare();
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${isStreaming && streamMode === "screen"
+                      ? "bg-blue-600 text-white"
+                      : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                    }`}
+                >
+                  🖥️ Screen Share
+                </button>
+                <button
+                  onClick={() => {
+                    if (isStreaming && streamMode === "screen") stopCapture();
+                    startWhiteboard();
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${isStreaming && streamMode === "whiteboard"
+                      ? "bg-emerald-600 text-white"
+                      : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                    }`}
+                >
+                  🎨 Whiteboard
+                </button>
+                {isStreaming && (
+                  <button
+                    onClick={stopCapture}
+                    className="ml-auto bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white text-sm px-4 py-2 rounded-lg transition-all"
+                  >
+                    Stop Streaming
+                  </button>
+                )}
+              </div>
 
-    {/* Whiteboard */}
-    {streamMode === "whiteboard" && isStreaming && (
-      <Whiteboard
-        onFrame={postWhiteboardFrame}
-        isStreaming={isStreaming}
-      />
-    )}
+              {/* Whiteboard */}
+              {streamMode === "whiteboard" && isStreaming && (
+                <Whiteboard
+                  onFrame={postWhiteboardFrame}
+                  isStreaming={isStreaming}
+                />
+              )}
 
-    {/* Screen share info */}
-    {streamMode === "screen" && isStreaming && (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <p className="text-white font-medium">Screen sharing is live</p>
-        </div>
-        <p className="text-zinc-500 text-sm">Students can see your screen</p>
-      </div>
-    )}
+              {/* Screen share info */}
+              {streamMode === "screen" && isStreaming && (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    <p className="text-white font-medium">Screen sharing is live</p>
+                  </div>
+                  <p className="text-zinc-500 text-sm">Students can see your screen</p>
+                </div>
+              )}
 
-    {/* Not streaming */}
-    {!isStreaming && (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col gap-4">
-        <p className="text-zinc-500 text-sm text-center">
-          Choose a mode above to start streaming to students
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-zinc-800 rounded-xl p-4 text-center">
-            <span className="text-3xl">🖥️</span>
-            <p className="text-white text-sm font-medium mt-2">Screen Share</p>
-            <p className="text-zinc-500 text-xs mt-1">Share your entire screen or a window</p>
-          </div>
-          <div className="bg-zinc-800 rounded-xl p-4 text-center">
-            <span className="text-3xl">🎨</span>
-            <p className="text-white text-sm font-medium mt-2">Whiteboard</p>
-            <p className="text-zinc-500 text-xs mt-1">Draw and write for students</p>
-          </div>
-        </div>
-      </div>
-    )}
-  </div>
-)}
+              {/* Not streaming */}
+              {!isStreaming && (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col gap-4">
+                  <p className="text-zinc-500 text-sm text-center">
+                    Choose a mode above to start streaming to students
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-zinc-800 rounded-xl p-4 text-center">
+                      <span className="text-3xl">🖥️</span>
+                      <p className="text-white text-sm font-medium mt-2">Screen Share</p>
+                      <p className="text-zinc-500 text-xs mt-1">Share your entire screen or a window</p>
+                    </div>
+                    <div className="bg-zinc-800 rounded-xl p-4 text-center">
+                      <span className="text-3xl">🎨</span>
+                      <p className="text-white text-sm font-medium mt-2">Whiteboard</p>
+                      <p className="text-zinc-500 text-xs mt-1">Draw and write for students</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
         </main>
       </div>
